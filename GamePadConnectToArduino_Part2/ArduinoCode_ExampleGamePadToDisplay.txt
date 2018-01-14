@@ -1,0 +1,147 @@
+﻿// ========================================================================================
+//      Meine Welt in meinem Kopf
+// ========================================================================================
+// Projekt:       XBox Controller to Display
+// Author:        Johannes P. Langner
+// Controller:    Arduino
+// Receiver:      UART, Input from Xbox Controller
+// Actor:         TFT 1.8" 128x160 SPI
+// Description:   Grundlage zu uebermitteln von Steuerdaten an den Arduino.
+// ========================================================================================
+
+#include <SPI.h>
+#include <TFT.h>
+#include <Wire.h>
+
+int mReceivedStickX;
+int mReceivedStickY;
+int mReceivedButtonA;
+int mReceivedButtonB;
+
+// ========================================================================================
+// TFT 128x160
+
+#define CS   10
+#define DC   9
+#define RST  8
+
+TFT mScreen = TFT(CS, DC, RST);
+
+// ========================================================================================
+// function variables
+
+int mLastPointX = 0;
+int mLastPointY = 0;
+
+// ========================================================================================
+void setup() {
+
+  Wire.begin();
+  Serial.begin(115200);                                     // must the same baudrate from tranceiver
+
+  mScreen.begin();                                          // initialize the tft
+  mScreen.background(0, 0, 0);
+}
+
+// ========================================================================================
+void loop() {
+
+  if( Serial.available() > 3){
+
+    if(!ReadReceivedBytes()) {
+      return;
+    }
+
+    mReceivedStickX = GetLimitedValue(mReceivedStickX);
+    mReceivedStickY = GetLimitedValue(mReceivedStickY);
+
+    if(mReceivedButtonA == 0 && mReceivedButtonB == 0) {
+      mScreen.stroke(0, 0, 0);
+      WriteCrossPoint(mLastPointX, mLastPointY, false);
+    }
+
+    mReceivedStickY = 180 + (mReceivedStickY * -1);           // invertiere den Wert fuer die Y Achse
+
+    int pointX = (mReceivedStickX * ((float)160 / 180.0));
+    int pointY = (mReceivedStickY * ((float)128 / 180.0));
+    
+    if(pointX > 0 && pointY > 0) {
+      mScreen.stroke(255, 255, 255);
+      WriteCrossPoint(pointX, pointY, true);
+    }
+
+    if(mReceivedButtonA > 0 && pointX > 0 && pointY > 0) {
+      mScreen.stroke(255, 0, 0);
+      WriteCrossPoint(pointX, pointY, true);
+      mReceivedButtonA = 0;
+    }
+
+    if(mReceivedButtonB > 0 && pointX > 0 && pointY > 0) {
+      
+      mScreen.stroke(0, 255, 0);
+      WriteCrossPoint(pointX, pointY, true);
+      mReceivedButtonB = 0;
+    }
+  }
+
+  delay(1);
+}
+
+// ========================================================================================
+// read all received bytes
+// ----------------------------------------------------------------------------------------
+// return = if false, the received bytes are not complete.
+bool ReadReceivedBytes() {
+  byte received[4];
+  int index = 0;
+  while(Serial.available() > 0) {
+    received[index] = Serial.read();
+    index++;
+  }
+  
+  if(index < 2) {                                         // if not all result received
+    return true;
+  }
+    
+  mReceivedStickX = received[0];
+  mReceivedStickY = received[1];
+  mReceivedButtonA = received[2];
+  mReceivedButtonB = received[3];
+
+  return true;
+}
+
+// ========================================================================================
+// Read the value to cut it, if the value over the limited value.
+// ----------------------------------------------------------------------------------------
+// value  = value to cut, if the value over the possible value.
+int GetLimitedValue(int value) {
+
+  if(value > 180) {                              
+    value = 180;                                 
+  }
+  else if(value < 0) {
+    value = 0;
+  }
+
+  return value;
+}
+
+// ========================================================================================
+// write a cross to the tft display
+// ----------------------------------------------------------------------------------------
+// pointX       = set postion on x
+// pointY       = set postion on y
+// setLastPoint = set postion to member last postion variables.
+void WriteCrossPoint(int pointX, int pointY, bool setLastPoint) {
+  mScreen.point(pointX, pointY);
+  mScreen.point(pointX - 1, pointY);
+  mScreen.point(pointX + 1, pointY);
+  mScreen.point(pointX, pointY - 1);
+  mScreen.point(pointX, pointY + 1);
+
+  if(setLastPoint) {
+    mLastPointX = pointX;
+    mLastPointY = pointY;
+  }
+}

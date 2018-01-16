@@ -7,6 +7,8 @@
 // Receiver:      UART, Input from Xbox Controller
 // Actor:         TFT 1.8" 128x160 SPI
 // Description:   Grundlage zu uebermitteln von Steuerdaten an den Arduino.
+//				  Diesen Programmcode in den Arduino Compiler kopieren und 
+//				  auf den Arduino schreiben.
 // ========================================================================================
 
 #include <SPI.h>
@@ -49,38 +51,44 @@ void loop() {
   if( Serial.available() > 3){
 
     if(!ReadReceivedBytes()) {
+      delay(1);
       return;
     }
 
     mReceivedStickX = GetLimitedValue(mReceivedStickX);
     mReceivedStickY = GetLimitedValue(mReceivedStickY);
 
-    if(mReceivedButtonA == 0 && mReceivedButtonB == 0) {
-      mScreen.stroke(0, 0, 0);
-      WriteCrossPoint(mLastPointX, mLastPointY, false);
-    }
-
     mReceivedStickY = 180 + (mReceivedStickY * -1);           // invertiere den Wert fuer die Y Achse
 
     int pointX = (mReceivedStickX * ((float)160 / 180.0));
     int pointY = (mReceivedStickY * ((float)128 / 180.0));
-    
-    if(pointX > 0 && pointY > 0) {
-      mScreen.stroke(255, 255, 255);
-      WriteCrossPoint(pointX, pointY, true);
-    }
 
-    if(mReceivedButtonA > 0 && pointX > 0 && pointY > 0) {
-      mScreen.stroke(255, 0, 0);
-      WriteCrossPoint(pointX, pointY, true);
-      mReceivedButtonA = 0;
-    }
+    if(mReceivedButtonA == 0 && mReceivedButtonB == 0) {
+      mScreen.stroke(0, 0, 0);
+      WriteCrossPoint(mLastPointX, mLastPointY);
 
-    if(mReceivedButtonB > 0 && pointX > 0 && pointY > 0) {
+      if(pointX > 0 && pointY > 0) {
+        mScreen.stroke(255, 255, 255);
+        WriteCrossPoint(pointX, pointY);
+
+        mLastPointX = pointX;
+        mLastPointY = pointY;
+      }
+    }
+    else {
       
-      mScreen.stroke(0, 255, 0);
-      WriteCrossPoint(pointX, pointY, true);
-      mReceivedButtonB = 0;
+      if(mReceivedButtonA > 0 && pointX > 0 && pointY > 0) {
+        mScreen.stroke(255, 0, 0);
+        WriteCrossPoint(pointX, pointY);
+        mReceivedButtonA = 0;
+      }
+  
+      if(mReceivedButtonB > 0 && pointX > 0 && pointY > 0) {
+        
+        mScreen.stroke(0, 255, 0);
+        WriteCrossPoint(pointX, pointY);
+        mReceivedButtonB = 0;
+      }
     }
   }
 
@@ -95,12 +103,14 @@ bool ReadReceivedBytes() {
   byte received[4];
   int index = 0;
   while(Serial.available() > 0) {
-    received[index] = Serial.read();
+    if(index < 5) {
+      received[index] = Serial.read();
+    }
     index++;
   }
-  
-  if(index < 2) {                                         // if not all result received
-    return true;
+
+  if(index < 4) {                                         // if not all result received
+    return false;
   }
     
   mReceivedStickX = received[0];
@@ -133,15 +143,10 @@ int GetLimitedValue(int value) {
 // pointX       = set postion on x
 // pointY       = set postion on y
 // setLastPoint = set postion to member last postion variables.
-void WriteCrossPoint(int pointX, int pointY, bool setLastPoint) {
+void WriteCrossPoint(int pointX, int pointY) {
   mScreen.point(pointX, pointY);
   mScreen.point(pointX - 1, pointY);
   mScreen.point(pointX + 1, pointY);
   mScreen.point(pointX, pointY - 1);
   mScreen.point(pointX, pointY + 1);
-
-  if(setLastPoint) {
-    mLastPointX = pointX;
-    mLastPointY = pointY;
-  }
 }

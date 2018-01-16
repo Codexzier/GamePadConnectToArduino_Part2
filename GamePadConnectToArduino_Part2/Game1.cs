@@ -46,8 +46,8 @@ namespace GamePadConnectToArduino_Part2
             {
                 byte stickValueX = (byte)((state.ThumbSticks.Left.X + 1) * 90);
                 byte stickValueY = (byte)((state.ThumbSticks.Left.Y + 1) * 90);
-                byte buttonValuePaint = (byte)state.Buttons.A;
-                byte buttonValueReset = (byte)state.Buttons.B;
+                byte buttonValuePaint = (byte)(state.Buttons.A == ButtonState.Pressed ? 10 : 0);
+                byte buttonValueReset = (byte)(state.Buttons.B == ButtonState.Pressed ? 10 : 0);
                 this._serialPort.Write(new byte[] { stickValueX, stickValueY, buttonValuePaint, buttonValueReset }, 0, 4);
                 this._serialPort.WriteLine(string.Empty);
             }
